@@ -1,0 +1,56 @@
+#!/bin/bash
+
+export RAILS_ENV=development
+export IMAGE_TAG=ror/dev
+export DOCKER_MACHINE_NAME=default
+export DOCKER_HOST_IP=`docker-machine ip $DOCKER_MACHINE_NAME`
+
+case "$(uname -s)" in
+
+   Darwin)
+     echo 'Mac OS X'
+     export HOST_IP=`ipconfig getifaddr en1`
+
+     ;;
+
+   Linux)
+     echo 'Linux'
+     echo "TODO: find out the local IP on Linux and assign it to HOST_IP variable"
+     ;;
+
+   CYGWIN*|MINGW32*|MSYS*)
+     echo 'MS Windows'
+     ;;
+
+   *)
+     echo 'Your OS not supported, sorry!'
+     ;;
+esac
+
+docker-machine start $DOCKER_MACHINE_NAME
+
+if [ "$1" == "--help" ] || [ "$1" == "-h" ]; then
+  echo "Development environment setup:"
+  echo "-----------------------------------------------------------------------"
+  echo " --help - To see this message"
+  echo " --build-image - To build new docker image for the ROR app (in case you changed Gemfile or something)"
+  echo " bundle exec rails s - To run a ROR command"
+  echo " bundle exec rake db:migrate - To run a rake command"
+  echo ""
+  echo "By default it runs 'rails server puma -b 0.0.0.0'"
+  exit 0
+fi
+
+if [ "$1" == "--build-image" ] ; then
+  docker build -f ./DockerfileDevelopment -t $IMAGE_TAG .
+  exit 0
+fi
+
+docker run -it \
+  --rm \
+  -v $(pwd):/app \
+  --add-host docker.host:$DOCKER_HOST_IP \
+  --add-host main.host:$HOST_IP \
+  -e RAILS_ENV=$RAILS_ENV \
+  -p 3000:3000 \
+  $IMAGE_TAG $*
